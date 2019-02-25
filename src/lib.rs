@@ -144,7 +144,7 @@ pub mod triplesec {
     );
 
     pub fn decrypt(ct: Bytes, k: Bytes) -> Res<Bytes> {
-        if ct.len() < CT_FST + 8 {
+        if ct.len() < CT_FST + 9 {
             return Err("ciphertext is too short".to_string());
         }
 
