@@ -1,0 +1,9 @@
+[
+    {
+        "comment": "from https://github.com/hynnet/NAChloride/blob/master/Tests/NATwoFishTest.m",
+        "pt": "this is a secret message!",
+        "key": "0xe898c31fac5b06a29ef24789ccad6bfa6d3cfae4e3c05ec84a9cf96c6a50a04b",
+        "iv": "0x3cfae4e3c05ec84a9cf96c6a50a04b4e",
+        "ct": "0xb8e8743028a8ddd74831f902326b2c5f338b3dd0037134e60f"
+    }
+]

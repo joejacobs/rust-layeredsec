@@ -1,0 +1,20 @@
+[
+    {
+        "comment": "from https://github.com/keybase/python-triplesec/blob/master/triplesec/test/vectors.json",
+        "pt": "Hello! I am ASCII!",
+        "key": "0xf6b305811712d06e8723",
+        "ct": "0x1c94d7de00000004ab62712b6a43fba017a7a13333b59d3650365fcebded3bd64741a99b2070fa12e4145766afa1b2dbcaca4d2053963f441be82963046766f16a4f82186a9ba7a7cf04f19da9a695a4a7ae9f6036a5d3b456ad97d512af55e61245c9a096db8a4b73cc64491ec67e5381ec14f2ce6f3db922b5cec7cea86305681a0204d6fb9522e7ec8851f8d85c4e4319473c2899ece487324093f144d27ea13355fd9a03a0765afc5f5750152824c6632dfd50bd25ac340aaa6e6cd3664c21d4501ef8b3107c3fa62b9a97d79a9ccc64"
+    },
+    {
+        "comment": "generated at http://fncuwbiisyh6ak3i.onion/triplesec",
+        "pt": "You see!",
+        "key": "abc",
+        "ct": "0x1c94d7de000000049bd21f97e48684ccc419eb7f50a607117dcddbcf05f12c90205393dbda1133abce2be3394221f7191a60cd16951bac84038954d6911764f60c5368c47004564d7e54bfbb5dcafbdff9d672bfebbc5986d4f344b7e6ea24352db0d144f1f81b0d563b0f8c509b2585b2f167e38d44323b0e3a1dc7249c0f0c6a7dbac809bcb1dac0fabebb74e0d80739f5905ff47a7f1937731b5c04b723398364ebf515c6e4c9e0ce76e96ff2992cf68081bdf330a18f5e315eb5806bf974fb449ae340fdafc9"
+    },
+    {
+        "comment": "generated at http://fncuwbiisyh6ak3i.onion/triplesec",
+        "pt": "=)",
+        "key": "ANNA",
+        "ct": "0x1c94d7de000000041b0dc8761cbb991e6f40445ee6e9ccc06a8c8527a420843e7e38a86d3a4142d77c5b1000de278a240fce92abab958f5af0f44bdff57b550bd68e372c25cedff7e03bf2882a1db46db5f439a05ff3c8c7bc29667ff59f00ea1121a5d99b34ae7a43dbe24f8e1e1a196e981f189f608866c464a1d17434981b20d8e24d9cb2e5feb9fb1ae67a29ce866802fe0037a1983689bb36c47f7fe91cf5ad6ab0d9b020f3706c3ddbf83695665896461816d0da57a3f2286d502f5e335cd9"
+    }
+]

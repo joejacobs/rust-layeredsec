@@ -1,0 +1,22 @@
+[package]
+name = "layeredsec"
+version = "0.1.0"
+authors = ["Joe Jacobs <joe@hazardcell.com>"]
+edition = "2018"
+license = "LGPL-3.0-only"
+description = "A Rust implementation of Keybase's TripleSec and other layered encryption schemes based on it"
+repository = "https://github.com/joejacobs/rust-layeredsec"
+readme = "README.md"
+keywords = ["crypto"]
+categories = ["cryptography"]
+
+[dependencies]
+botan = "~0.4"
+hmac = "~0.7"
+openssl = { version = "~0.10", features = ["vendored"] }
+sha2 = "~0.8"
+sha3 = "~0.8"
+sodiumoxide = "~0.2"
+
+[dev-dependencies]
+serde_json = "~1.0"
