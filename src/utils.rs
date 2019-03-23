@@ -103,6 +103,12 @@ impl Bytes {
         Bytes(v)
     }
 
+    pub fn random(sz: usize) -> Self {
+        let mut v = vec![0u8; sz];
+        sodiumoxide::randombytes::randombytes_into(&mut v[..]);
+        Bytes(v)
+    }
+
     pub fn as_hex(&self) -> Res<String> {
         match botan::hex_encode(self.as_slice()) {
             Ok(x) => Ok(x),
