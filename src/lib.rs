@@ -15,6 +15,7 @@ use sha2;
 use sha3;
 use sodiumoxide::crypto::stream::{xchacha20, xsalsa20};
 use sodiumoxide::{randombytes::randombytes_into, utils::memcmp};
+use zeroize::Zeroize;
 
 const CIPHER_KEY_SZ: usize = 32;
 const HMAC_KEY_SZ: usize = 48;

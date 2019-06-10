@@ -4,6 +4,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+use zeroize::Zeroize;
+
 pub type Res<T> = Result<T, String>;
 
 // some generic structs for later use
@@ -30,6 +32,8 @@ macro_rules! define_safe_byte_arr {
         $name:ident,
         $bytes:expr
     ) => {
+        #[derive(Zeroize)]
+        #[zeroize(drop)]
         pub struct $name([u8; $bytes]);
 
         impl Random<$name> for $name {
@@ -43,12 +47,6 @@ macro_rules! define_safe_byte_arr {
         impl AsSlice for $name {
             fn as_slice(&self) -> &[u8] {
                 &self.0[..]
-            }
-        }
-
-        impl Drop for $name {
-            fn drop(&mut self) {
-                sodiumoxide::utils::memzero(&mut self.0);
             }
         }
 
@@ -78,7 +76,8 @@ macro_rules! define_safe_byte_arr {
 }
 
 // a safe byte vector that wipes itself on deletion
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Zeroize)]
+#[zeroize(drop)]
 pub struct Bytes(Vec<u8>);
 
 impl Bytes {
@@ -165,11 +164,5 @@ impl Bytes {
 
     pub fn len(&self) -> usize {
         self.0.len()
-    }
-}
-
-impl Drop for Bytes {
-    fn drop(&mut self) {
-        sodiumoxide::utils::memzero(&mut self.0[..]);
     }
 }
