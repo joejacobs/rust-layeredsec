@@ -117,15 +117,6 @@ macro_rules! define_3_layer_encryption_module {
 pub mod triplesec {
     use super::*;
 
-    define_2_layer_encryption_module!(
-        v4,
-        &[0x1c, 0x94, 0xd7, 0xde, 0x0, 0x0, 0x0, 0x4],
-        stream_xor_xsalsa20,
-        stream_xor_aes256,
-        hmac_sha2,
-        hmac_sha3
-    );
-
     define_3_layer_encryption_module!(
         v3,
         &[0x1c, 0x94, 0xd7, 0xde, 0x0, 0x0, 0x0, 0x3],
@@ -134,6 +125,15 @@ pub mod triplesec {
         stream_xor_aes256,
         hmac_sha2,
         hmac_keccak
+    );
+
+    define_2_layer_encryption_module!(
+        v4,
+        &[0x1c, 0x94, 0xd7, 0xde, 0x0, 0x0, 0x0, 0x4],
+        stream_xor_xsalsa20,
+        stream_xor_aes256,
+        hmac_sha2,
+        hmac_sha3
     );
 
     pub fn decrypt(ct: Bytes, k: Bytes) -> Res<Bytes> {
