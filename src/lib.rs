@@ -38,6 +38,13 @@ const HMAC1_FST: usize = SALT_FST + SALT_SZ;
 const HMAC2_FST: usize = HMAC1_FST + HMAC_SZ;
 const CT_FST: usize = HMAC2_FST + HMAC_SZ;
 
+// safe byte arrays of varying sizes
+define_safe_byte_array!(Safe16B, 16);
+define_safe_byte_array!(Safe24B, 24);
+define_safe_byte_array!(Safe32B, 32);
+define_safe_byte_array!(Safe48B, 48);
+define_safe_byte_array!(Safe64B, 64);
+
 // abbreviations of common types for convenience
 type EncFn<T> = fn(Bytes, &T, &Safe32B) -> Res<Bytes>;
 type DecFn<T> = fn(Bytes, &T, &Safe32B) -> Res<Bytes>;
@@ -105,13 +112,6 @@ macro_rules! define_3_layer_encryption_module {
         }
     };
 }
-
-// safe byte arrays of varying sizes
-define_safe_byte_array!(Safe16B, 16);
-define_safe_byte_array!(Safe24B, 24);
-define_safe_byte_array!(Safe32B, 32);
-define_safe_byte_array!(Safe48B, 48);
-define_safe_byte_array!(Safe64B, 64);
 
 // define triplesec module
 pub mod triplesec {
