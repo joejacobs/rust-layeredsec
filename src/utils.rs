@@ -27,7 +27,7 @@ pub trait Size {
 
 // macro for defining a fixed size byte array that wipes itself on deletion
 #[macro_export]
-macro_rules! define_safe_byte_arr {
+macro_rules! define_safe_byte_array {
     (
         $name:ident,
         $bytes:expr

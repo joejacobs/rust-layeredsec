@@ -22,14 +22,6 @@ const HMAC_KEY_SZ: usize = 48;
 const HMAC_SZ: usize = 64;
 const SALT_SZ: usize = 16;
 
-// init vector sizes for different ciphers
-const XC20_IV_SZ: usize = 24;
-const XS20_IV_SZ: usize = 24;
-const AES_IV_SZ: usize = 16;
-const CAM_IV_SZ: usize = 16;
-const SP_IV_SZ: usize = 16;
-const TF_IV_SZ: usize = 16;
-
 // NIDs for different OpenSSL ciphers
 const NIDAES: i32 = 906;
 const NIDCAM: i32 = 971;
@@ -47,9 +39,9 @@ const HMAC2_FST: usize = HMAC1_FST + HMAC_SZ;
 const CT_FST: usize = HMAC2_FST + HMAC_SZ;
 
 // abbreviations of common types for convenience
-type EncFn<T> = fn(Bytes, &T, &CipherKey) -> Res<Bytes>;
-type DecFn<T> = fn(Bytes, &T, &CipherKey) -> Res<Bytes>;
-type HmacFn = fn(&[u8], &HmacKey) -> Res<HmacBuf>;
+type EncFn<T> = fn(Bytes, &T, &Safe32B) -> Res<Bytes>;
+type DecFn<T> = fn(Bytes, &T, &Safe32B) -> Res<Bytes>;
+type HmacFn = fn(&[u8], &Safe48B) -> Res<Safe64B>;
 
 // define a 2-layered encryption module
 #[macro_export]
@@ -114,18 +106,12 @@ macro_rules! define_3_layer_encryption_module {
     };
 }
 
-// key byte arrays
-define_safe_byte_arr!(CipherKey, CIPHER_KEY_SZ);
-define_safe_byte_arr!(HmacKey, HMAC_KEY_SZ);
-define_safe_byte_arr!(HmacBuf, HMAC_SZ);
-
-// iv byte arrays
-define_safe_byte_arr!(Xc20Iv, XC20_IV_SZ);
-define_safe_byte_arr!(Xs20Iv, XS20_IV_SZ);
-define_safe_byte_arr!(AesIv, AES_IV_SZ);
-define_safe_byte_arr!(CamIv, CAM_IV_SZ);
-define_safe_byte_arr!(SpIv, SP_IV_SZ);
-define_safe_byte_arr!(TfIv, TF_IV_SZ);
+// safe byte arrays of varying sizes
+define_safe_byte_array!(Safe16B, 16);
+define_safe_byte_array!(Safe24B, 24);
+define_safe_byte_array!(Safe32B, 32);
+define_safe_byte_array!(Safe48B, 48);
+define_safe_byte_array!(Safe64B, 64);
 
 // define triplesec module
 pub mod triplesec {
@@ -173,7 +159,7 @@ pub mod triplesec {
     }
 }
 
-fn cipher_decrypt<T>(dec_fn: DecFn<T>, buf: Bytes, k: &CipherKey) -> Res<Bytes>
+fn cipher_decrypt<T>(dec_fn: DecFn<T>, buf: Bytes, k: &Safe32B) -> Res<Bytes>
 where
     T: FromSlice<T> + Size,
 {
@@ -184,7 +170,7 @@ where
     dec_fn(ct, &iv, k)
 }
 
-fn cipher_encrypt<T>(enc_fn: EncFn<T>, pt: Bytes, k: &CipherKey) -> Res<Bytes>
+fn cipher_encrypt<T>(enc_fn: EncFn<T>, pt: Bytes, k: &Safe32B) -> Res<Bytes>
 where
     T: AsSlice + Random<T> + Size,
 {
@@ -440,22 +426,22 @@ fn get_openssl_cipher(raw_nid: i32) -> Res<symm::Cipher> {
     }
 }
 
-pub fn hmac_keccak(buf: &[u8], k: &HmacKey) -> Res<HmacBuf> {
+pub fn hmac_keccak(buf: &[u8], k: &Safe48B) -> Res<Safe64B> {
     let mut hmac = Hmac::<sha3::Keccak512>::new_varkey(k.as_slice()).unwrap();
     hmac.input(buf);
-    Ok(HmacBuf::from_slice(hmac.result().code().as_slice())?)
+    Ok(Safe64B::from_slice(hmac.result().code().as_slice())?)
 }
 
-pub fn hmac_sha2(buf: &[u8], k: &HmacKey) -> Res<HmacBuf> {
+pub fn hmac_sha2(buf: &[u8], k: &Safe48B) -> Res<Safe64B> {
     let mut hmac = Hmac::<sha2::Sha512>::new_varkey(k.as_slice()).unwrap();
     hmac.input(buf);
-    Ok(HmacBuf::from_slice(hmac.result().code().as_slice())?)
+    Ok(Safe64B::from_slice(hmac.result().code().as_slice())?)
 }
 
-pub fn hmac_sha3(buf: &[u8], k: &HmacKey) -> Res<HmacBuf> {
+pub fn hmac_sha3(buf: &[u8], k: &Safe48B) -> Res<Safe64B> {
     let mut hmac = Hmac::<sha3::Sha3_512>::new_varkey(k.as_slice()).unwrap();
     hmac.input(buf);
-    Ok(HmacBuf::from_slice(hmac.result().code().as_slice())?)
+    Ok(Safe64B::from_slice(hmac.result().code().as_slice())?)
 }
 
 pub fn init() -> Result<(), ()> {
@@ -464,7 +450,7 @@ pub fn init() -> Result<(), ()> {
 }
 
 // stream xor with AES-256-CTR (Rijndael)
-pub fn stream_xor_aes256(m: Bytes, iv: &AesIv, k: &CipherKey) -> Res<Bytes> {
+pub fn stream_xor_aes256(m: Bytes, iv: &Safe16B, k: &Safe32B) -> Res<Bytes> {
     match symm::encrypt(
         get_openssl_cipher(NIDAES)?,
         k.as_slice(),
@@ -486,7 +472,7 @@ pub fn stream_xor_aes256(m: Bytes, iv: &AesIv, k: &CipherKey) -> Res<Bytes> {
 }
 
 // stream xor with Camellia-256-CTR
-pub fn stream_xor_camellia256(m: Bytes, iv: &CamIv, k: &CipherKey) -> Res<Bytes> {
+pub fn stream_xor_camellia256(m: Bytes, iv: &Safe16B, k: &Safe32B) -> Res<Bytes> {
     match symm::encrypt(
         get_openssl_cipher(NIDCAM)?,
         k.as_slice(),
@@ -508,7 +494,7 @@ pub fn stream_xor_camellia256(m: Bytes, iv: &CamIv, k: &CipherKey) -> Res<Bytes>
 }
 
 // stream xor with Serpent-256-CTR
-pub fn stream_xor_serpent256(m: Bytes, iv: &SpIv, k: &CipherKey) -> Res<Bytes> {
+pub fn stream_xor_serpent256(m: Bytes, iv: &Safe16B, k: &Safe32B) -> Res<Bytes> {
     let cipher = get_botan_cipher("Serpent/CTR")?;
 
     if let Err(_) = cipher.set_key(k.as_slice()) {
@@ -528,7 +514,7 @@ pub fn stream_xor_serpent256(m: Bytes, iv: &SpIv, k: &CipherKey) -> Res<Bytes> {
 }
 
 // stream xor with Twofish-256-CTR
-pub fn stream_xor_twofish256(m: Bytes, iv: &TfIv, k: &CipherKey) -> Res<Bytes> {
+pub fn stream_xor_twofish256(m: Bytes, iv: &Safe16B, k: &Safe32B) -> Res<Bytes> {
     let cipher = get_botan_cipher("Twofish/CTR")?;
 
     if let Err(_) = cipher.set_key(k.as_slice()) {
@@ -548,7 +534,7 @@ pub fn stream_xor_twofish256(m: Bytes, iv: &TfIv, k: &CipherKey) -> Res<Bytes> {
 }
 
 // stream xor with XChaCha20
-pub fn stream_xor_xchacha20(m: Bytes, iv: &Xc20Iv, k: &CipherKey) -> Res<Bytes> {
+pub fn stream_xor_xchacha20(m: Bytes, iv: &Safe24B, k: &Safe32B) -> Res<Bytes> {
     let nonce = match xchacha20::Nonce::from_slice(iv.as_slice()) {
         Some(x) => x,
         None => return Err("xchacha20 nonce construction error".to_string()),
@@ -567,7 +553,7 @@ pub fn stream_xor_xchacha20(m: Bytes, iv: &Xc20Iv, k: &CipherKey) -> Res<Bytes> 
 }
 
 // stream xor with XSalsa20
-pub fn stream_xor_xsalsa20(m: Bytes, iv: &Xs20Iv, k: &CipherKey) -> Res<Bytes> {
+pub fn stream_xor_xsalsa20(m: Bytes, iv: &Safe24B, k: &Safe32B) -> Res<Bytes> {
     let nonce = match xsalsa20::Nonce::from_slice(iv.as_slice()) {
         Some(x) => x,
         None => return Err("xsalsa20 nonce construction error".to_string()),
@@ -585,7 +571,7 @@ pub fn stream_xor_xsalsa20(m: Bytes, iv: &Xs20Iv, k: &CipherKey) -> Res<Bytes> {
     Ok(xt)
 }
 
-fn stretch_key(k: &[u8], s: &[u8], n_keys: usize) -> Res<(Vec<CipherKey>, [HmacKey; 2])> {
+fn stretch_key(k: &[u8], s: &[u8], n_keys: usize) -> Res<(Vec<Safe32B>, [Safe48B; 2])> {
     // stretch the key with scrypt
     let mut all_keys = Bytes::blank((2 * HMAC_KEY_SZ) + (n_keys * CIPHER_KEY_SZ));
 
@@ -605,18 +591,18 @@ fn stretch_key(k: &[u8], s: &[u8], n_keys: usize) -> Res<(Vec<CipherKey>, [HmacK
     // extract the individual keys
     let mut fst = 0;
     let mut lst = HMAC_KEY_SZ;
-    let hkey1 = HmacKey::from_slice(all_keys.get_slice(fst, lst)?)?;
+    let hkey1 = Safe48B::from_slice(all_keys.get_slice(fst, lst)?)?;
 
     fst = lst;
     lst += HMAC_KEY_SZ;
-    let hkey2 = HmacKey::from_slice(all_keys.get_slice(fst, lst)?)?;
+    let hkey2 = Safe48B::from_slice(all_keys.get_slice(fst, lst)?)?;
 
-    let mut ckeys = Vec::<CipherKey>::new();
+    let mut ckeys = Vec::<Safe32B>::new();
 
     for _ in 0..n_keys {
         fst = lst;
         lst += CIPHER_KEY_SZ;
-        ckeys.push(CipherKey::from_slice(all_keys.get_slice(fst, lst)?)?);
+        ckeys.push(Safe32B::from_slice(all_keys.get_slice(fst, lst)?)?);
     }
 
     Ok((ckeys, [hkey1, hkey2]))
@@ -634,8 +620,8 @@ mod unittests {
         let test_vectors = testutils::parse_test_vectors(json_str).unwrap();
 
         for v in test_vectors {
-            let iv = AesIv::from_slice(v.iv.unwrap().as_slice()).unwrap();
-            let key = CipherKey::from_slice(v.key.as_slice()).unwrap();
+            let iv = Safe16B::from_slice(v.iv.unwrap().as_slice()).unwrap();
+            let key = Safe32B::from_slice(v.key.as_slice()).unwrap();
             let pt = stream_xor_aes256(v.ct, &iv, &key).unwrap();
             assert_eq!(v.pt, pt);
         }
@@ -647,8 +633,8 @@ mod unittests {
         let test_vectors = testutils::parse_test_vectors(json_str).unwrap();
 
         for v in test_vectors {
-            let iv = AesIv::from_slice(v.iv.unwrap().as_slice()).unwrap();
-            let key = CipherKey::from_slice(v.key.as_slice()).unwrap();
+            let iv = Safe16B::from_slice(v.iv.unwrap().as_slice()).unwrap();
+            let key = Safe32B::from_slice(v.key.as_slice()).unwrap();
             let ct = stream_xor_aes256(v.pt, &iv, &key).unwrap();
             assert_eq!(v.ct, ct);
         }
@@ -696,8 +682,8 @@ mod unittests {
         let test_vectors = testutils::parse_test_vectors(json_str).unwrap();
 
         for v in test_vectors {
-            let iv = TfIv::from_slice(v.iv.unwrap().as_slice()).unwrap();
-            let key = CipherKey::from_slice(v.key.as_slice()).unwrap();
+            let iv = Safe16B::from_slice(v.iv.unwrap().as_slice()).unwrap();
+            let key = Safe32B::from_slice(v.key.as_slice()).unwrap();
             let pt = stream_xor_twofish256(v.ct, &iv, &key).unwrap();
             assert_eq!(v.pt, pt);
         }
@@ -709,8 +695,8 @@ mod unittests {
         let test_vectors = testutils::parse_test_vectors(json_str).unwrap();
 
         for v in test_vectors {
-            let iv = TfIv::from_slice(v.iv.unwrap().as_slice()).unwrap();
-            let key = CipherKey::from_slice(v.key.as_slice()).unwrap();
+            let iv = Safe16B::from_slice(v.iv.unwrap().as_slice()).unwrap();
+            let key = Safe32B::from_slice(v.key.as_slice()).unwrap();
             let ct = stream_xor_twofish256(v.pt, &iv, &key).unwrap();
             assert_eq!(v.ct, ct);
         }
@@ -722,8 +708,8 @@ mod unittests {
         let test_vectors = testutils::parse_test_vectors(json_str).unwrap();
 
         for v in test_vectors {
-            let iv = Xs20Iv::from_slice(v.iv.unwrap().as_slice()).unwrap();
-            let key = CipherKey::from_slice(v.key.as_slice()).unwrap();
+            let iv = Safe24B::from_slice(v.iv.unwrap().as_slice()).unwrap();
+            let key = Safe32B::from_slice(v.key.as_slice()).unwrap();
             let pt = stream_xor_xsalsa20(v.ct, &iv, &key).unwrap();
             assert_eq!(v.pt, pt);
         }
@@ -735,8 +721,8 @@ mod unittests {
         let test_vectors = testutils::parse_test_vectors(json_str).unwrap();
 
         for v in test_vectors {
-            let iv = Xs20Iv::from_slice(v.iv.unwrap().as_slice()).unwrap();
-            let key = CipherKey::from_slice(v.key.as_slice()).unwrap();
+            let iv = Safe24B::from_slice(v.iv.unwrap().as_slice()).unwrap();
+            let key = Safe32B::from_slice(v.key.as_slice()).unwrap();
             let ct = stream_xor_xsalsa20(v.pt, &iv, &key).unwrap();
             assert_eq!(v.ct, ct);
         }
