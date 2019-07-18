@@ -597,7 +597,7 @@ fn stretch_key(k: &[u8], s: &[u8], n_keys: usize) -> Res<(Vec<Safe32B>, [Safe48B
     lst += HMAC_KEY_SZ;
     let hkey2 = Safe48B::from_slice(all_keys.get_slice(fst, lst)?)?;
 
-    let mut ckeys = Vec::<Safe32B>::new();
+    let mut ckeys = Vec::<Safe32B>::with_capacity(n_keys);
 
     for _ in 0..n_keys {
         fst = lst;
