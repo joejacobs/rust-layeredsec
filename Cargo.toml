@@ -11,7 +11,7 @@ keywords = ["crypto"]
 categories = ["cryptography"]
 
 [dependencies]
-botan = "~0.4"
+botan = "~0.5"
 hmac = "~0.7"
 openssl = { version = "~0.10", features = ["vendored"] }
 sha2 = "~0.8"
