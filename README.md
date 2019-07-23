@@ -59,7 +59,7 @@ v. 2.0. If a copy of the MPL was not distributed with this file, You can obtain
 one at https://mozilla.org/MPL/2.0/.
 
 [1]: https://keybase.io/triplesec/
-[2]: http://fncuwbiisyh6ak3i.onion/triplesec/
+[2]: http://keybase5wmilwokqirssclfnsqrjdsi7jdir5wy7y7iu3tanwmtp6oid.onion/triplesec/
 [3]: https://github.com/sfackler/rust-openssl/
 [4]: https://www.openssl.org/
 [5]: https://github.com/randombit/botan-rs/
