@@ -35,15 +35,7 @@ macro_rules! define_safe_byte_array {
         #[derive(Zeroize)]
         #[zeroize(drop)]
         pub struct $name([u8; $bytes]);
-
-        impl Random<$name> for $name {
-            fn random() -> Self {
-                let mut x = $name([0u8; $bytes]);
-                sodiumoxide::randombytes::randombytes_into(&mut x.0[..]);
-                x
-            }
-        }
-
+ 
         impl AsSlice for $name {
             fn as_slice(&self) -> &[u8] {
                 &self.0[..]
@@ -67,6 +59,14 @@ macro_rules! define_safe_byte_array {
             }
         }
 
+        impl Random<$name> for $name {
+            fn random() -> Self {
+                let mut x = $name([0u8; $bytes]);
+                sodiumoxide::randombytes::randombytes_into(&mut x.0[..]);
+                x
+            }
+        }
+
         impl Size for $name {
             fn size() -> usize {
                 $bytes
@@ -81,35 +81,6 @@ macro_rules! define_safe_byte_array {
 pub struct Bytes(Vec<u8>);
 
 impl Bytes {
-    pub fn blank(sz: usize) -> Self {
-        Bytes(vec![0u8; sz])
-    }
-
-    pub fn from_hex(hex: &str) -> Res<Self> {
-        match botan::hex_decode(hex) {
-            Ok(x) => Ok(Bytes(x)),
-            Err(_) => Err("hex decode error".to_string()),
-        }
-    }
-
-    pub fn from_str(s: &str) -> Res<Self> {
-        if s.find("0x") == Some(0) {
-            return Bytes::from_hex(&s[2..]);
-        }
-
-        Ok(Bytes(s.to_string().into_bytes()))
-    }
-
-    pub fn from_vec(v: Vec<u8>) -> Self {
-        Bytes(v)
-    }
-
-    pub fn random(sz: usize) -> Self {
-        let mut v = vec![0u8; sz];
-        sodiumoxide::randombytes::randombytes_into(&mut v[..]);
-        Bytes(v)
-    }
-
     pub fn as_hex(&self) -> Res<String> {
         match botan::hex_encode(self.as_slice()) {
             Ok(x) => Ok(x),
@@ -123,6 +94,10 @@ impl Bytes {
 
     pub fn as_slice(&self) -> &[u8] {
         &self.0[..]
+    }
+
+    pub fn blank(sz: usize) -> Self {
+        Bytes(vec![0u8; sz])
     }
 
     pub fn copy_from_slice(&mut self, x: usize, y: usize, b: &[u8]) -> Res<()> {
@@ -146,6 +121,25 @@ impl Bytes {
         Ok(())
     }
 
+    pub fn from_hex(hex: &str) -> Res<Self> {
+        match botan::hex_decode(hex) {
+            Ok(x) => Ok(Bytes(x)),
+            Err(_) => Err("hex decode error".to_string()),
+        }
+    }
+
+    pub fn from_str(s: &str) -> Res<Self> {
+        if s.find("0x") == Some(0) {
+            return Bytes::from_hex(&s[2..]);
+        }
+
+        Ok(Bytes(s.to_string().into_bytes()))
+    }
+
+    pub fn from_vec(v: Vec<u8>) -> Self {
+        Bytes(v)
+    }
+
     pub fn get_mut_slice(&mut self, x: usize, y: usize) -> Res<&mut [u8]> {
         if y > self.0.len() || x >= y {
             return Err("index out of bounds".to_string());
@@ -164,5 +158,11 @@ impl Bytes {
 
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+
+    pub fn random(sz: usize) -> Self {
+        let mut v = vec![0u8; sz];
+        sodiumoxide::randombytes::randombytes_into(&mut v[..]);
+        Bytes(v)
     }
 }
