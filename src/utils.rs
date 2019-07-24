@@ -35,7 +35,7 @@ macro_rules! define_safe_byte_array {
         #[derive(Zeroize)]
         #[zeroize(drop)]
         pub struct $name([u8; $bytes]);
- 
+
         impl AsSlice for $name {
             fn as_slice(&self) -> &[u8] {
                 &self.0[..]
