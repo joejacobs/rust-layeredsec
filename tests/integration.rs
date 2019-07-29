@@ -45,8 +45,8 @@ define_3_layer_encryption_module!(
 );
 
 fn encrypt_decrypt_test(
-    encrypt: fn(Bytes, Bytes) -> Result<Bytes, String>,
-    decrypt: fn(Bytes, Bytes) -> Result<Bytes, String>,
+    encrypt: fn(Bytes, &Bytes) -> Result<Bytes, String>,
+    decrypt: fn(Bytes, &Bytes) -> Result<Bytes, String>,
     header_sz: usize,
 ) {
     init().unwrap();
@@ -54,9 +54,9 @@ fn encrypt_decrypt_test(
     let k_bytes = b"random-key-or-user-password";
     let pt = Bytes::from_vec(pt_bytes.to_vec());
     let k = Bytes::from_vec(k_bytes.to_vec());
-    let ct = encrypt(pt.clone(), k.clone()).unwrap();
+    let ct = encrypt(pt.clone(), &k).unwrap();
     assert_eq!(ct.len(), header_sz + pt.len()); // verify ciphertext length
-    let dec_pt = decrypt(ct, k).unwrap();
+    let dec_pt = decrypt(ct, &k).unwrap();
     assert_eq!(pt.as_slice(), dec_pt.as_slice());
 }
 

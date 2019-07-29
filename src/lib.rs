@@ -64,11 +64,11 @@ macro_rules! define_2_layer_encryption_module {
         pub mod $name {
             use super::*;
 
-            pub fn decrypt(ct: Bytes, k: Bytes) -> Result<Bytes, String> {
+            pub fn decrypt(ct: Bytes, k: &Bytes) -> Result<Bytes, String> {
                 generic_double_decrypt(ct, k, $header, ($cipher1, $cipher2), ($hmac1, $hmac2))
             }
 
-            pub fn encrypt(pt: Bytes, k: Bytes) -> Result<Bytes, String> {
+            pub fn encrypt(pt: Bytes, k: &Bytes) -> Result<Bytes, String> {
                 generic_double_encrypt(pt, k, $header, ($cipher1, $cipher2), ($hmac1, $hmac2))
             }
         }
@@ -90,7 +90,7 @@ macro_rules! define_3_layer_encryption_module {
         pub mod $name {
             use super::*;
 
-            pub fn decrypt(ct: Bytes, k: Bytes) -> Result<Bytes, String> {
+            pub fn decrypt(ct: Bytes, k: &Bytes) -> Result<Bytes, String> {
                 generic_triple_decrypt(
                     ct,
                     k,
@@ -100,7 +100,7 @@ macro_rules! define_3_layer_encryption_module {
                 )
             }
 
-            pub fn encrypt(pt: Bytes, k: Bytes) -> Result<Bytes, String> {
+            pub fn encrypt(pt: Bytes, k: &Bytes) -> Result<Bytes, String> {
                 generic_triple_encrypt(
                     pt,
                     k,
@@ -136,7 +136,7 @@ pub mod triplesec {
         hmac_sha3
     );
 
-    pub fn decrypt(ct: Bytes, k: Bytes) -> Res<Bytes> {
+    pub fn decrypt(ct: Bytes, k: &Bytes) -> Res<Bytes> {
         if ct.len() < CT_FST + 9 {
             return Err("ciphertext is too short".to_string());
         }
@@ -154,7 +154,7 @@ pub mod triplesec {
         }
     }
 
-    pub fn encrypt(pt: Bytes, k: Bytes) -> Res<Bytes> {
+    pub fn encrypt(pt: Bytes, k: &Bytes) -> Res<Bytes> {
         v4::encrypt(pt, k)
     }
 }
@@ -186,7 +186,7 @@ where
 
 pub fn generic_double_decrypt<T, U>(
     ct: Bytes,
-    k: Bytes,
+    k: &Bytes,
     header: &[u8],
     dec_fn: (DecFn<T>, DecFn<U>),
     hmac_fn: (HmacFn, HmacFn),
@@ -246,7 +246,7 @@ where
 
 pub fn generic_double_encrypt<T, U>(
     pt: Bytes,
-    k: Bytes,
+    k: &Bytes,
     header: &[u8],
     enc_fn: (EncFn<T>, EncFn<U>),
     hmac_fn: (HmacFn, HmacFn),
@@ -298,7 +298,7 @@ where
 
 pub fn generic_triple_decrypt<T, U, V>(
     ct: Bytes,
-    k: Bytes,
+    k: &Bytes,
     header: &[u8],
     dec_fn: (DecFn<T>, DecFn<U>, DecFn<V>),
     hmac_fn: (HmacFn, HmacFn),
@@ -360,7 +360,7 @@ where
 
 pub fn generic_triple_encrypt<T, U, V>(
     pt: Bytes,
-    k: Bytes,
+    k: &Bytes,
     header: &[u8],
     enc_fn: (EncFn<T>, EncFn<U>, EncFn<V>),
     hmac_fn: (HmacFn, HmacFn),
@@ -649,7 +649,7 @@ mod unittests {
         test_vectors.append(&mut test_vectors_v4);
 
         for v in test_vectors {
-            let pt = triplesec::decrypt(v.ct, v.key).unwrap();
+            let pt = triplesec::decrypt(v.ct, &v.key).unwrap();
             assert_eq!(v.pt, pt);
         }
     }
@@ -660,7 +660,7 @@ mod unittests {
         let test_vectors = testutils::parse_test_vectors(json_str).unwrap();
 
         for v in test_vectors {
-            let pt = triplesec::v3::decrypt(v.ct, v.key).unwrap();
+            let pt = triplesec::v3::decrypt(v.ct, &v.key).unwrap();
             assert_eq!(v.pt, pt);
         }
     }
@@ -671,7 +671,7 @@ mod unittests {
         let test_vectors = testutils::parse_test_vectors(json_str).unwrap();
 
         for v in test_vectors {
-            let pt = triplesec::v4::decrypt(v.ct, v.key).unwrap();
+            let pt = triplesec::v4::decrypt(v.ct, &v.key).unwrap();
             assert_eq!(v.pt, pt);
         }
     }
