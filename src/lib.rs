@@ -703,6 +703,32 @@ mod unittests {
     }
 
     #[test]
+    fn can_decrypt_with_xchacha20() {
+        let json_str = include_str!("./unittests/xchacha20-tests.json");
+        let test_vectors = testutils::parse_test_vectors(json_str).unwrap();
+
+        for v in test_vectors {
+            let iv = Safe24B::from_slice(v.iv.unwrap().as_slice()).unwrap();
+            let key = Safe32B::from_slice(v.key.as_slice()).unwrap();
+            let pt = stream_xor_xchacha20(v.ct, &iv, &key).unwrap();
+            assert_eq!(v.pt, pt);
+        }
+    }
+
+    #[test]
+    fn can_encrypt_with_xchacha20() {
+        let json_str = include_str!("./unittests/xchacha20-tests.json");
+        let test_vectors = testutils::parse_test_vectors(json_str).unwrap();
+
+        for v in test_vectors {
+            let iv = Safe24B::from_slice(v.iv.unwrap().as_slice()).unwrap();
+            let key = Safe32B::from_slice(v.key.as_slice()).unwrap();
+            let ct = stream_xor_xchacha20(v.pt, &iv, &key).unwrap();
+            assert_eq!(v.ct, ct);
+        }
+    }
+
+    #[test]
     fn can_decrypt_with_xsalsa20() {
         let json_str = include_str!("./unittests/xsalsa20-tests.json");
         let test_vectors = testutils::parse_test_vectors(json_str).unwrap();
