@@ -4,6 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
 
 pub type Res<T> = Result<T, String>;
@@ -119,6 +120,14 @@ impl Bytes {
 
         self.0[x..y].copy_from_slice(b);
         Ok(())
+    }
+
+    pub fn eq(&self, a: usize, b: usize, rhs: &[u8]) -> Res<u8> {
+        if b > self.0.len() || a >= b {
+            return Err("index out of bounds".to_string());
+        }
+
+        Ok(self.0[a..b].ct_eq(rhs).unwrap_u8())
     }
 
     pub fn from_hex(hex: &str) -> Res<Self> {

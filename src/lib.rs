@@ -14,8 +14,7 @@ use hmac::{Hmac, Mac};
 use openssl::{nid, pkcs5::scrypt, symm};
 use sha2;
 use sha3;
-use sodiumoxide::crypto::stream::xsalsa20;
-use sodiumoxide::{randombytes::randombytes_into, utils::memcmp};
+use sodiumoxide::{crypto::stream::xsalsa20, randombytes::randombytes_into};
 use stream_cipher::{generic_array::GenericArray, NewStreamCipher, SyncStreamCipher};
 use zeroize::Zeroize;
 
@@ -143,13 +142,13 @@ pub mod triplesec {
             return Err("ciphertext is too short".to_string());
         }
 
-        if !memcmp(ct.get_slice(0, 4)?, &[0x1c, 0x94, 0xd7, 0xde]) {
+        if ct.eq(0, 4, &[0x1c, 0x94, 0xd7, 0xde])? == 0 {
             return Err("magic number error".to_string());
         }
 
-        if memcmp(ct.get_slice(4, 8)?, &[0x0, 0x0, 0x0, 0x3]) {
+        if ct.eq(4, 8, &[0x0, 0x0, 0x0, 0x3])? == 1 {
             v3::decrypt(ct, k)
-        } else if memcmp(ct.get_slice(4, 8)?, &[0x0, 0x0, 0x0, 0x4]) {
+        } else if ct.eq(4, 8, &[0x0, 0x0, 0x0, 0x4])? == 1 {
             v4::decrypt(ct, k)
         } else {
             Err("unsupported triplesec version".to_string())
@@ -210,7 +209,7 @@ where
     let hmac1_fst = HMAC1_FST + header.len();
     let ct_fst = CT_FST + header.len();
 
-    if salt_fst > 0 && !memcmp(ct.get_slice(header_fst, salt_fst)?, header) {
+    if salt_fst > 0 && ct.eq(header_fst, salt_fst, header)? == 0 {
         return Err("header error".to_string());
     }
 
@@ -227,9 +226,8 @@ where
     let mut hmacs_out = Bytes::blank(2 * HMAC_SZ);
     hmacs_out.copy_from_slice(0, HMAC_SZ, hmac1.as_slice())?;
     hmacs_out.copy_from_slice(HMAC_SZ, 2 * HMAC_SZ, hmac2.as_slice())?;
-    let hmacs_in = ct.get_slice(hmac1_fst, ct_fst)?;
 
-    if !memcmp(hmacs_in, hmacs_out.as_slice()) {
+    if ct.eq(hmac1_fst, ct_fst, hmacs_out.as_slice())? == 0 {
         return Err("authentication error".to_string());
     }
 
@@ -323,7 +321,7 @@ where
     let hmac1_fst = HMAC1_FST + header.len();
     let ct_fst = CT_FST + header.len();
 
-    if salt_fst > 0 && !memcmp(ct.get_slice(header_fst, salt_fst)?, header) {
+    if salt_fst > 0 && ct.eq(header_fst, salt_fst, header)? == 0 {
         return Err("header error".to_string());
     }
 
@@ -340,9 +338,8 @@ where
     let mut hmacs_out = Bytes::blank(2 * HMAC_SZ);
     hmacs_out.copy_from_slice(0, HMAC_SZ, hmac1.as_slice())?;
     hmacs_out.copy_from_slice(HMAC_SZ, 2 * HMAC_SZ, hmac2.as_slice())?;
-    let hmacs_in = ct.get_slice(hmac1_fst, ct_fst)?;
 
-    if !memcmp(hmacs_in, hmacs_out.as_slice()) {
+    if ct.eq(hmac1_fst, ct_fst, hmacs_out.as_slice())? == 0 {
         return Err("authentication error".to_string());
     }
 

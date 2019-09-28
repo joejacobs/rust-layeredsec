@@ -19,6 +19,7 @@ sha2 = "~0.8"
 sha3 = "~0.8"
 sodiumoxide = "~0.2"
 stream-cipher = "~0.3"
+subtle = "~2.2"
 zeroize = { version = "~0.10", features = ["zeroize_derive"] }
 
 [dev-dependencies]
