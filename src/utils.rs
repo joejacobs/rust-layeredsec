@@ -14,12 +14,18 @@ pub trait AsSlice {
     fn as_slice(&self) -> &[u8];
 }
 
-pub trait FromSlice<T> {
-    fn from_slice(b: &[u8]) -> Res<T>;
+pub trait FromSlice
+where
+    Self: core::marker::Sized,
+{
+    fn from_slice(b: &[u8]) -> Res<Self>;
 }
 
-pub trait Random<T> {
-    fn random() -> T;
+pub trait Random
+where
+    Self: core::marker::Sized,
+{
+    fn random() -> Self;
 }
 
 pub trait Size {
@@ -44,7 +50,7 @@ macro_rules! define_safe_byte_array {
         }
 
         // based on sodiumoxide implementation
-        impl FromSlice<$name> for $name {
+        impl FromSlice for $name {
             fn from_slice(b: &[u8]) -> Res<Self> {
                 if b.len() != $bytes {
                     return Err("incorrect size".to_string());
@@ -60,7 +66,7 @@ macro_rules! define_safe_byte_array {
             }
         }
 
-        impl Random<$name> for $name {
+        impl Random for $name {
             fn random() -> Self {
                 let mut x = $name([0u8; $bytes]);
                 sodiumoxide::randombytes::randombytes_into(&mut x.0[..]);

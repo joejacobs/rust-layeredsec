@@ -162,7 +162,7 @@ pub mod triplesec {
 
 fn cipher_decrypt<T>(dec_fn: DecFn<T>, buf: Bytes, k: &Safe32B) -> Res<Bytes>
 where
-    T: FromSlice<T> + Size,
+    T: FromSlice + Size,
 {
     let ct_sz = buf.len() - T::size();
     let iv = T::from_slice(buf.get_slice(0, T::size())?)?;
@@ -173,7 +173,7 @@ where
 
 fn cipher_encrypt<T>(enc_fn: EncFn<T>, pt: Bytes, k: &Safe32B) -> Res<Bytes>
 where
-    T: AsSlice + Random<T> + Size,
+    T: AsSlice + Random + Size,
 {
     let buf_sz = T::size() + pt.len();
     let iv = T::random();
@@ -193,8 +193,8 @@ pub fn generic_double_decrypt<T, U>(
     hmac_fn: (HmacFn, HmacFn),
 ) -> Res<Bytes>
 where
-    T: FromSlice<T> + Size,
-    U: FromSlice<U> + Size,
+    T: FromSlice + Size,
+    U: FromSlice + Size,
 {
     if ct.len() < header.len() + CT_FST + 1 {
         return Err("ciphertext is too short".to_string());
@@ -252,8 +252,8 @@ pub fn generic_double_encrypt<T, U>(
     hmac_fn: (HmacFn, HmacFn),
 ) -> Res<Bytes>
 where
-    T: AsSlice + Random<T> + Size,
-    U: AsSlice + Random<U> + Size,
+    T: AsSlice + Random + Size,
+    U: AsSlice + Random + Size,
 {
     if pt.len() < 1 {
         return Err("empty plaintext".to_string());
@@ -304,9 +304,9 @@ pub fn generic_triple_decrypt<T, U, V>(
     hmac_fn: (HmacFn, HmacFn),
 ) -> Res<Bytes>
 where
-    T: FromSlice<T> + Size,
-    U: FromSlice<U> + Size,
-    V: FromSlice<V> + Size,
+    T: FromSlice + Size,
+    U: FromSlice + Size,
+    V: FromSlice + Size,
 {
     if ct.len() < header.len() + CT_FST + 1 {
         return Err("ciphertext is too short".to_string());
@@ -365,9 +365,9 @@ pub fn generic_triple_encrypt<T, U, V>(
     hmac_fn: (HmacFn, HmacFn),
 ) -> Res<Bytes>
 where
-    T: AsSlice + Random<T> + Size,
-    U: AsSlice + Random<U> + Size,
-    V: AsSlice + Random<V> + Size,
+    T: AsSlice + Random + Size,
+    U: AsSlice + Random + Size,
+    V: AsSlice + Random + Size,
 {
     if pt.len() < 1 {
         return Err("empty plaintext".to_string());
