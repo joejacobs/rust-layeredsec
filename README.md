@@ -33,7 +33,7 @@ Stream Ciphers
 * Camellia-256-CTR (uses [rust-openssl][3]/[OpenSSL][4])
 * Serpent-256-CTR (uses [botan-rs][5]/[botan][6])
 * Twofish-256-CTR (uses [botan-rs][5]/[botan][6])
-* XChaCha20 (uses [sodiumoxide][7]/[libsodium][8])
+* XChaCha20 (uses [RustCrypto][9])
 * XSalsa20 (uses [sodiumoxide][7]/[libsodium][8])
 
 HMAC (uses [RustCrypto][9])

@@ -9,12 +9,14 @@ mod utils;
 pub use self::utils::Bytes;
 use self::utils::*;
 use botan::{Cipher, CipherDirection};
+use chacha20::XChaCha20;
 use hmac::{Hmac, Mac};
 use openssl::{nid, pkcs5::scrypt, symm};
 use sha2;
 use sha3;
-use sodiumoxide::crypto::stream::{xchacha20, xsalsa20};
+use sodiumoxide::crypto::stream::xsalsa20;
 use sodiumoxide::{randombytes::randombytes_into, utils::memcmp};
+use stream_cipher::{generic_array::GenericArray, NewStreamCipher, SyncStreamCipher};
 use zeroize::Zeroize;
 
 const CIPHER_KEY_SZ: usize = 32;
@@ -535,15 +537,11 @@ pub fn stream_xor_twofish256(m: Bytes, iv: &Safe16B, k: &Safe32B) -> Res<Bytes> 
 
 // stream xor with XChaCha20
 pub fn stream_xor_xchacha20(m: Bytes, iv: &Safe24B, k: &Safe32B) -> Res<Bytes> {
-    let nonce = match xchacha20::Nonce::from_slice(iv.as_slice()) {
-        Some(x) => x,
-        None => return Err("xchacha20 nonce construction error".to_string()),
-    };
-    let key = match xchacha20::Key::from_slice(k.as_slice()) {
-        Some(x) => x,
-        None => return Err("xchacha20 key construction error".to_string()),
-    };
-    let xt = Bytes::from_vec(xchacha20::stream_xor(m.as_slice(), &nonce, &key));
+    let nonce = GenericArray::from_slice(iv.as_slice());
+    let key = GenericArray::from_slice(k.as_slice());
+    let mut cipher = XChaCha20::new(&key, &nonce);
+    let mut xt = m.clone();
+    cipher.apply_keystream(xt.as_mut_slice());
 
     if xt.len() != m.len() {
         return Err("xchacha20 xor error".to_string());
