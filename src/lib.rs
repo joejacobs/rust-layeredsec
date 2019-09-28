@@ -12,9 +12,10 @@ use botan::{Cipher, CipherDirection};
 use chacha20::XChaCha20;
 use hmac::{Hmac, Mac};
 use openssl::{nid, pkcs5::scrypt, symm};
+use rand::{prelude::RngCore, rngs::OsRng};
 use sha2;
 use sha3;
-use sodiumoxide::{crypto::stream::xsalsa20, randombytes::randombytes_into};
+use sodiumoxide::crypto::stream::xsalsa20;
 use stream_cipher::{generic_array::GenericArray, NewStreamCipher, SyncStreamCipher};
 use zeroize::Zeroize;
 
@@ -176,7 +177,7 @@ where
     T: AsSlice + Random + Size,
 {
     let buf_sz = T::size() + pt.len();
-    let iv = T::random();
+    let iv = T::random()?;
     let ct = enc_fn(pt, &iv, k)?;
 
     let mut buf = Bytes::blank(buf_sz);
@@ -275,7 +276,7 @@ where
     buf.copy_from_slice(header_fst, salt_fst, header)?;
 
     // generate salt and stretch key
-    randombytes_into(buf.get_mut_slice(salt_fst, hmac1_fst)?);
+    OsRng.fill_bytes(buf.get_mut_slice(salt_fst, hmac1_fst)?);
     let (ckeys, hkeys) = stretch_key(k.as_slice(), buf.get_slice(salt_fst, hmac1_fst)?, 3)?;
 
     // encrypt plaintext and add it to the output buffer
@@ -389,7 +390,7 @@ where
     buf.copy_from_slice(header_fst, salt_fst, header)?;
 
     // generate salt and stretch key
-    randombytes_into(buf.get_mut_slice(salt_fst, hmac1_fst)?);
+    OsRng.fill_bytes(buf.get_mut_slice(salt_fst, hmac1_fst)?);
     let (ckeys, hkeys) = stretch_key(k.as_slice(), buf.get_slice(salt_fst, hmac1_fst)?, 3)?;
 
     // encrypt plaintext and add it to the output buffer

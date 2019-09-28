@@ -4,6 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+use rand::{prelude::RngCore, rngs::OsRng};
 use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
 
@@ -25,7 +26,7 @@ pub trait Random
 where
     Self: core::marker::Sized,
 {
-    fn random() -> Self;
+    fn random() -> Res<Self>;
 }
 
 pub trait Size {
@@ -67,10 +68,13 @@ macro_rules! define_safe_byte_array {
         }
 
         impl Random for $name {
-            fn random() -> Self {
+            fn random() -> Res<Self> {
                 let mut x = $name([0u8; $bytes]);
-                sodiumoxide::randombytes::randombytes_into(&mut x.0[..]);
-                x
+
+                match OsRng.try_fill_bytes(&mut x.0[..]) {
+                    Ok(_) => Ok(x),
+                    Err(e) => Err(e.to_string()),
+                }
             }
         }
 
@@ -175,9 +179,12 @@ impl Bytes {
         self.0.len()
     }
 
-    pub fn random(sz: usize) -> Self {
+    pub fn random(sz: usize) -> Res<Self> {
         let mut v = vec![0u8; sz];
-        sodiumoxide::randombytes::randombytes_into(&mut v[..]);
-        Bytes(v)
+
+        match OsRng.try_fill_bytes(&mut v[..]) {
+            Ok(_) => Ok(Bytes(v)),
+            Err(e) => Err(e.to_string()),
+        }
     }
 }
