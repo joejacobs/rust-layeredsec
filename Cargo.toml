@@ -15,7 +15,7 @@ botan = "~0.6"
 chacha20 = { version = "~0.2", features = ["zeroize"] }
 hmac = "~0.7"
 openssl = { version = "~0.10", features = ["vendored"] }
-rand = { version = "~0.7", features = [] }
+rand = "~0.7"
 sha2 = "~0.8"
 sha3 = "~0.8"
 sodiumoxide = "~0.2"
