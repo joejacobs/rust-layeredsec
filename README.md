@@ -3,6 +3,7 @@ layeredsec
 
 [![License](https://img.shields.io/github/license/joejacobs/rust-layeredsec)](https://mozilla.org/MPL/2.0/)
 [![Build Status](https://travis-ci.org/joejacobs/rust-layeredsec.svg?branch=master)](https://travis-ci.org/joejacobs/rust-layeredsec)
+[![Dependency Status](https://deps.rs/repo/github/joejacobs/rust-layeredsec/status.svg)](https://deps.rs/repo/github/joejacobs/rust-layeredsec)
 
 Rust implementation of [Keybase's TripleSec][1] ([.onion][2]) encryption scheme
 (versions 3 and 4) and other layered encryption schemes based on it. 
