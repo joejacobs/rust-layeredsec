@@ -49,7 +49,7 @@ fn encrypt_decrypt_test(
     decrypt: fn(Bytes, &Bytes) -> Result<Bytes, String>,
     header_sz: usize,
 ) {
-    init().unwrap();
+    init();
     let pt_bytes = b"the quick brown fox jumps over the lazy dog";
     let k_bytes = b"random-key-or-user-password";
     let pt = Bytes::from_vec(pt_bytes.to_vec());

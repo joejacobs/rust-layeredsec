@@ -12,13 +12,13 @@ categories = ["cryptography"]
 
 [dependencies]
 botan = "~0.6"
-chacha20 = { version = "~0.2", features = ["zeroize"] }
+chacha20 = { version = "~0.2", features = ["xchacha20", "zeroize"] }
 hmac = "~0.7"
 openssl = { version = "~0.10", features = ["vendored"] }
 rand = "~0.7"
+salsa20 = { version = "~0.3", features = ["xsalsa20", "zeroize"] }
 sha2 = "~0.8"
 sha3 = "~0.8"
-sodiumoxide = "~0.2"
 stream-cipher = "~0.3"
 subtle = "~2.2"
 zeroize = { version = "~0.10", features = ["zeroize_derive"] }

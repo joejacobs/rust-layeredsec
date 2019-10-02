@@ -13,9 +13,9 @@ use chacha20::XChaCha20;
 use hmac::{Hmac, Mac};
 use openssl::{nid, pkcs5::scrypt, symm};
 use rand::{prelude::RngCore, rngs::OsRng};
+use salsa20::XSalsa20;
 use sha2;
 use sha3;
-use sodiumoxide::crypto::stream::xsalsa20;
 use stream_cipher::{generic_array::GenericArray, NewStreamCipher, SyncStreamCipher};
 use zeroize::Zeroize;
 
@@ -444,9 +444,8 @@ pub fn hmac_sha3(buf: &[u8], k: &Safe48B) -> Res<Safe64B> {
     Ok(Safe64B::from_slice(hmac.result().code().as_slice())?)
 }
 
-pub fn init() -> Result<(), ()> {
-    openssl::init();
-    sodiumoxide::init()
+pub fn init() {
+    openssl::init()
 }
 
 // stream xor with AES-256-CTR (Rijndael)
@@ -550,15 +549,11 @@ pub fn stream_xor_xchacha20(m: Bytes, iv: &Safe24B, k: &Safe32B) -> Res<Bytes> {
 
 // stream xor with XSalsa20
 pub fn stream_xor_xsalsa20(m: Bytes, iv: &Safe24B, k: &Safe32B) -> Res<Bytes> {
-    let nonce = match xsalsa20::Nonce::from_slice(iv.as_slice()) {
-        Some(x) => x,
-        None => return Err("xsalsa20 nonce construction error".to_string()),
-    };
-    let key = match xsalsa20::Key::from_slice(k.as_slice()) {
-        Some(x) => x,
-        None => return Err("xsalsa20 key construction error".to_string()),
-    };
-    let xt = Bytes::from_vec(xsalsa20::stream_xor(m.as_slice(), &nonce, &key));
+    let nonce = GenericArray::from_slice(iv.as_slice());
+    let key = GenericArray::from_slice(k.as_slice());
+    let mut cipher = XSalsa20::new(&key, &nonce);
+    let mut xt = m.clone();
+    cipher.apply_keystream(xt.as_mut_slice());
 
     if xt.len() != m.len() {
         return Err("xsalsa20 xor error".to_string());

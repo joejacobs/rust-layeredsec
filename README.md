@@ -34,10 +34,10 @@ Stream Ciphers
 * Camellia-256-CTR (uses [rust-openssl][3]/[OpenSSL][4])
 * Serpent-256-CTR (uses [botan-rs][5]/[botan][6])
 * Twofish-256-CTR (uses [botan-rs][5]/[botan][6])
-* XChaCha20 (uses [RustCrypto][9])
-* XSalsa20 (uses [sodiumoxide][7]/[libsodium][8])
+* XChaCha20 (uses [RustCrypto][7])
+* XSalsa20 (uses [RustCrypto][7])
 
-HMAC (uses [RustCrypto][9])
+HMAC (uses [RustCrypto][7])
 
 * SHA-512
 * Keccak-512
@@ -69,6 +69,4 @@ one at https://mozilla.org/MPL/2.0/.
 [4]: https://www.openssl.org/
 [5]: https://github.com/randombit/botan-rs/
 [6]: https://botan.randombit.net/
-[7]: https://github.com/sodiumoxide/sodiumoxide/
-[8]: https://libsodium.org/
-[9]: https://github.com/RustCrypto/
+[7]: https://github.com/RustCrypto/
