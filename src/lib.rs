@@ -8,6 +8,7 @@ mod utils;
 
 pub use self::utils::Bytes;
 use self::utils::*;
+
 use botan::{Cipher, CipherDirection};
 use chacha20::XChaCha20;
 use hmac::{Hmac, Mac};
@@ -17,7 +18,6 @@ use salsa20::XSalsa20;
 use sha2;
 use sha3;
 use stream_cipher::{generic_array::GenericArray, NewStreamCipher, SyncStreamCipher};
-use zeroize::Zeroize;
 
 const CIPHER_KEY_SZ: usize = 32;
 const HMAC_KEY_SZ: usize = 48;
@@ -36,16 +36,9 @@ const SCRYPT_MEM: u64 = (SCRYPT_N + SCRYPT_P) * SCRYPT_R * 129;
 
 // output buffer indices for generic layered encryption
 const SALT_FST: usize = 0;
-const HMAC1_FST: usize = SALT_FST + SALT_SZ;
-const HMAC2_FST: usize = HMAC1_FST + HMAC_SZ;
-const CT_FST: usize = HMAC2_FST + HMAC_SZ;
-
-// safe byte arrays of varying sizes
-define_safe_byte_array!(Safe16B, 16);
-define_safe_byte_array!(Safe24B, 24);
-define_safe_byte_array!(Safe32B, 32);
-define_safe_byte_array!(Safe48B, 48);
-define_safe_byte_array!(Safe64B, 64);
+const HMAC0_FST: usize = SALT_FST + SALT_SZ;
+const HMAC1_FST: usize = HMAC0_FST + HMAC_SZ;
+const NONCE_FST: usize = HMAC1_FST + HMAC_SZ;
 
 // abbreviations of common types for convenience
 type EncFn<T> = fn(Bytes, &T, &Safe32B) -> Res<Bytes>;
@@ -139,7 +132,7 @@ pub mod triplesec {
     );
 
     pub fn decrypt(ct: Bytes, k: &Bytes) -> Res<Bytes> {
-        if ct.len() < CT_FST + 9 {
+        if ct.len() < NONCE_FST + 9 {
             return Err("ciphertext is too short".to_string());
         }
 
@@ -165,9 +158,9 @@ fn cipher_decrypt<T>(dec_fn: DecFn<T>, buf: Bytes, k: &Safe32B) -> Res<Bytes>
 where
     T: FromSlice + Size,
 {
-    let iv = T::from_slice(buf.get_slice(0, T::size())?)?;
+    let nonce = T::from_slice(buf.get_slice(0, T::size())?)?;
     let ct = Bytes::from_slice(buf.get_slice(T::size(), buf.len())?)?;
-    dec_fn(ct, &iv, k)
+    dec_fn(ct, &nonce, k)
 }
 
 fn cipher_encrypt<T>(enc_fn: EncFn<T>, pt: Bytes, k: &Safe32B) -> Res<Bytes>
@@ -175,11 +168,11 @@ where
     T: AsSlice + Random + Size,
 {
     let buf_sz = T::size() + pt.len();
-    let iv = T::random()?;
-    let ct = enc_fn(pt, &iv, k)?;
+    let nonce = T::random()?;
+    let ct = enc_fn(pt, &nonce, k)?;
 
     let mut buf = Bytes::blank(buf_sz);
-    buf.copy_from_slice(0, T::size(), iv.as_slice())?;
+    buf.copy_from_slice(0, T::size(), nonce.as_slice())?;
     buf.copy_from_slice(T::size(), buf_sz, ct.as_slice())?;
     Ok(buf)
 }
@@ -195,7 +188,7 @@ where
     T: FromSlice + Size,
     U: FromSlice + Size,
 {
-    if ct.len() < header.len() + CT_FST + 1 {
+    if ct.len() < header.len() + NONCE_FST + 1 {
         return Err("ciphertext is too short".to_string());
     }
 
@@ -205,38 +198,38 @@ where
 
     let header_fst = 0;
     let salt_fst = SALT_FST + header.len();
-    let hmac1_fst = HMAC1_FST + header.len();
-    let ct_fst = CT_FST + header.len();
+    let hmac0_fst = HMAC0_FST + header.len();
+    let nonce_fst = NONCE_FST + header.len();
 
     if salt_fst > 0 && ct.eq(header_fst, salt_fst, header)? == 0 {
         return Err("header error".to_string());
     }
 
     // stretch key
-    let (ckeys, hkeys) = stretch_key(k.as_slice(), ct.get_slice(salt_fst, hmac1_fst)?, 3)?;
+    let (ckeys, hkeys) = stretch_key(k.as_slice(), ct.get_slice(salt_fst, hmac0_fst)?, 3)?;
 
     // verify hmacs
     let mut buf = ct.clone();
     let lst = ct.len() - (2 * HMAC_SZ);
-    buf.copy_from_slice(hmac1_fst, lst, ct.get_slice(ct_fst, ct.len())?)?;
-    let hmac1 = hmac_fn.0(buf.get_slice(header_fst, lst)?, &hkeys[0])?;
-    let hmac2 = hmac_fn.1(buf.get_slice(header_fst, lst)?, &hkeys[1])?;
+    buf.copy_from_slice(hmac0_fst, lst, ct.get_slice(nonce_fst, ct.len())?)?;
+    let hmac0 = hmac_fn.0(buf.get_slice(header_fst, lst)?, &hkeys[0])?;
+    let hmac1 = hmac_fn.1(buf.get_slice(header_fst, lst)?, &hkeys[1])?;
 
     let mut hmacs_out = Bytes::blank(2 * HMAC_SZ);
-    hmacs_out.copy_from_slice(0, HMAC_SZ, hmac1.as_slice())?;
-    hmacs_out.copy_from_slice(HMAC_SZ, 2 * HMAC_SZ, hmac2.as_slice())?;
+    hmacs_out.copy_from_slice(0, HMAC_SZ, hmac0.as_slice())?;
+    hmacs_out.copy_from_slice(HMAC_SZ, 2 * HMAC_SZ, hmac1.as_slice())?;
 
-    if ct.eq(hmac1_fst, ct_fst, hmacs_out.as_slice())? == 0 {
+    if ct.eq(hmac0_fst, nonce_fst, hmacs_out.as_slice())? == 0 {
         return Err("authentication error".to_string());
     }
 
     // get ciphertext from input buffer and decrypt it
-    let buf = Bytes::from_vec(ct.get_slice(ct_fst, ct.len())?.into());
+    let buf = Bytes::from_vec(ct.get_slice(nonce_fst, ct.len())?.into());
     let pt2 = cipher_decrypt(dec_fn.1, buf, &ckeys[0])?;
     let pt1 = cipher_decrypt(dec_fn.0, pt2, &ckeys[1])?;
 
     // verify plaintext size
-    if ct_fst + U::size() + T::size() + pt1.len() != ct.len() {
+    if nonce_fst + U::size() + T::size() + pt1.len() != ct.len() {
         return Err("decryption error".to_string());
     }
 
@@ -264,33 +257,33 @@ where
 
     let header_fst = 0;
     let salt_fst = SALT_FST + header.len();
+    let hmac0_fst = HMAC0_FST + header.len();
     let hmac1_fst = HMAC1_FST + header.len();
-    let hmac2_fst = HMAC2_FST + header.len();
-    let ct_fst = CT_FST + header.len();
+    let nonce_fst = NONCE_FST + header.len();
 
     // create output buffer
-    let buf_sz = ct_fst + T::size() + U::size() + pt.len();
+    let buf_sz = nonce_fst + T::size() + U::size() + pt.len();
     let mut buf = Bytes::blank(buf_sz);
     buf.copy_from_slice(header_fst, salt_fst, header)?;
 
     // generate salt and stretch key
-    OsRng.fill_bytes(buf.get_mut_slice(salt_fst, hmac1_fst)?);
-    let (ckeys, hkeys) = stretch_key(k.as_slice(), buf.get_slice(salt_fst, hmac1_fst)?, 3)?;
+    OsRng.fill_bytes(buf.get_mut_slice(salt_fst, hmac0_fst)?);
+    let (ckeys, hkeys) = stretch_key(k.as_slice(), buf.get_slice(salt_fst, hmac0_fst)?, 3)?;
 
     // encrypt plaintext and add it to the output buffer
     let ct1 = cipher_encrypt(enc_fn.0, pt, &ckeys[1])?;
     let ct2 = cipher_encrypt(enc_fn.1, ct1, &ckeys[0])?;
 
     // calculate hmac and add to output buffer
-    let lst = hmac1_fst + ct2.len();
-    buf.copy_from_slice(hmac1_fst, lst, ct2.as_slice())?;
-    let hmac1 = hmac_fn.0(buf.get_slice(header_fst, lst)?, &hkeys[0])?;
-    let hmac2 = hmac_fn.1(buf.get_slice(header_fst, lst)?, &hkeys[1])?;
+    let lst = hmac0_fst + ct2.len();
+    buf.copy_from_slice(hmac0_fst, lst, ct2.as_slice())?;
+    let hmac0 = hmac_fn.0(buf.get_slice(header_fst, lst)?, &hkeys[0])?;
+    let hmac1 = hmac_fn.1(buf.get_slice(header_fst, lst)?, &hkeys[1])?;
 
     // construct output
-    buf.copy_from_slice(hmac1_fst, hmac2_fst, hmac1.as_slice())?;
-    buf.copy_from_slice(hmac2_fst, ct_fst, hmac2.as_slice())?;
-    buf.copy_from_slice(ct_fst, buf_sz, ct2.as_slice())?;
+    buf.copy_from_slice(hmac0_fst, hmac1_fst, hmac0.as_slice())?;
+    buf.copy_from_slice(hmac1_fst, nonce_fst, hmac1.as_slice())?;
+    buf.copy_from_slice(nonce_fst, buf_sz, ct2.as_slice())?;
 
     Ok(buf)
 }
@@ -307,7 +300,7 @@ where
     U: FromSlice + Size,
     V: FromSlice + Size,
 {
-    if ct.len() < header.len() + CT_FST + 1 {
+    if ct.len() < header.len() + NONCE_FST + 1 {
         return Err("ciphertext is too short".to_string());
     }
 
@@ -317,39 +310,39 @@ where
 
     let header_fst = 0;
     let salt_fst = SALT_FST + header.len();
-    let hmac1_fst = HMAC1_FST + header.len();
-    let ct_fst = CT_FST + header.len();
+    let hmac0_fst = HMAC0_FST + header.len();
+    let nonce_fst = NONCE_FST + header.len();
 
     if salt_fst > 0 && ct.eq(header_fst, salt_fst, header)? == 0 {
         return Err("header error".to_string());
     }
 
     // stretch key
-    let (ckeys, hkeys) = stretch_key(k.as_slice(), ct.get_slice(salt_fst, hmac1_fst)?, 3)?;
+    let (ckeys, hkeys) = stretch_key(k.as_slice(), ct.get_slice(salt_fst, hmac0_fst)?, 3)?;
 
     // verify hmacs
     let mut buf = ct.clone();
     let lst = ct.len() - (2 * HMAC_SZ);
-    buf.copy_from_slice(hmac1_fst, lst, ct.get_slice(ct_fst, ct.len())?)?;
-    let hmac1 = hmac_fn.0(buf.get_slice(header_fst, lst)?, &hkeys[0])?;
-    let hmac2 = hmac_fn.1(buf.get_slice(header_fst, lst)?, &hkeys[1])?;
+    buf.copy_from_slice(hmac0_fst, lst, ct.get_slice(nonce_fst, ct.len())?)?;
+    let hmac0 = hmac_fn.0(buf.get_slice(header_fst, lst)?, &hkeys[0])?;
+    let hmac1 = hmac_fn.1(buf.get_slice(header_fst, lst)?, &hkeys[1])?;
 
     let mut hmacs_out = Bytes::blank(2 * HMAC_SZ);
-    hmacs_out.copy_from_slice(0, HMAC_SZ, hmac1.as_slice())?;
-    hmacs_out.copy_from_slice(HMAC_SZ, 2 * HMAC_SZ, hmac2.as_slice())?;
+    hmacs_out.copy_from_slice(0, HMAC_SZ, hmac0.as_slice())?;
+    hmacs_out.copy_from_slice(HMAC_SZ, 2 * HMAC_SZ, hmac1.as_slice())?;
 
-    if ct.eq(hmac1_fst, ct_fst, hmacs_out.as_slice())? == 0 {
+    if ct.eq(hmac0_fst, nonce_fst, hmacs_out.as_slice())? == 0 {
         return Err("authentication error".to_string());
     }
 
     // get ciphertext from input buffer and decrypt it
-    let buf = Bytes::from_vec(ct.get_slice(ct_fst, ct.len())?.into());
+    let buf = Bytes::from_vec(ct.get_slice(nonce_fst, ct.len())?.into());
     let pt3 = cipher_decrypt(dec_fn.2, buf, &ckeys[0])?;
     let pt2 = cipher_decrypt(dec_fn.1, pt3, &ckeys[1])?;
     let pt1 = cipher_decrypt(dec_fn.0, pt2, &ckeys[2])?;
 
     // verify plaintext size
-    if ct_fst + V::size() + U::size() + T::size() + pt1.len() != ct.len() {
+    if nonce_fst + V::size() + U::size() + T::size() + pt1.len() != ct.len() {
         return Err("decryption error".to_string());
     }
 
@@ -378,18 +371,18 @@ where
 
     let header_fst = 0;
     let salt_fst = SALT_FST + header.len();
+    let hmac0_fst = HMAC0_FST + header.len();
     let hmac1_fst = HMAC1_FST + header.len();
-    let hmac2_fst = HMAC2_FST + header.len();
-    let ct_fst = CT_FST + header.len();
+    let nonce_fst = NONCE_FST + header.len();
 
     // create output buffer
-    let buf_sz = ct_fst + T::size() + U::size() + V::size() + pt.len();
+    let buf_sz = nonce_fst + T::size() + U::size() + V::size() + pt.len();
     let mut buf = Bytes::blank(buf_sz);
     buf.copy_from_slice(header_fst, salt_fst, header)?;
 
     // generate salt and stretch key
-    OsRng.fill_bytes(buf.get_mut_slice(salt_fst, hmac1_fst)?);
-    let (ckeys, hkeys) = stretch_key(k.as_slice(), buf.get_slice(salt_fst, hmac1_fst)?, 3)?;
+    OsRng.fill_bytes(buf.get_mut_slice(salt_fst, hmac0_fst)?);
+    let (ckeys, hkeys) = stretch_key(k.as_slice(), buf.get_slice(salt_fst, hmac0_fst)?, 3)?;
 
     // encrypt plaintext and add it to the output buffer
     let ct1 = cipher_encrypt(enc_fn.0, pt, &ckeys[2])?;
@@ -397,15 +390,15 @@ where
     let ct3 = cipher_encrypt(enc_fn.2, ct2, &ckeys[0])?;
 
     // calculate hmac and add to output buffer
-    let lst = hmac1_fst + ct3.len();
-    buf.copy_from_slice(hmac1_fst, lst, ct3.as_slice())?;
-    let hmac1 = hmac_fn.0(buf.get_slice(header_fst, lst)?, &hkeys[0])?;
-    let hmac2 = hmac_fn.1(buf.get_slice(header_fst, lst)?, &hkeys[1])?;
+    let lst = hmac0_fst + ct3.len();
+    buf.copy_from_slice(hmac0_fst, lst, ct3.as_slice())?;
+    let hmac0 = hmac_fn.0(buf.get_slice(header_fst, lst)?, &hkeys[0])?;
+    let hmac1 = hmac_fn.1(buf.get_slice(header_fst, lst)?, &hkeys[1])?;
 
     // construct output
-    buf.copy_from_slice(hmac1_fst, hmac2_fst, hmac1.as_slice())?;
-    buf.copy_from_slice(hmac2_fst, ct_fst, hmac2.as_slice())?;
-    buf.copy_from_slice(ct_fst, buf_sz, ct3.as_slice())?;
+    buf.copy_from_slice(hmac0_fst, hmac1_fst, hmac0.as_slice())?;
+    buf.copy_from_slice(hmac1_fst, nonce_fst, hmac1.as_slice())?;
+    buf.copy_from_slice(nonce_fst, buf_sz, ct3.as_slice())?;
 
     Ok(buf)
 }
@@ -447,11 +440,11 @@ pub fn init() {
 }
 
 // stream xor with AES-256-CTR (Rijndael)
-pub fn stream_xor_aes256(m: Bytes, iv: &Safe16B, k: &Safe32B) -> Res<Bytes> {
+pub fn stream_xor_aes256(m: Bytes, nonce: &Safe16B, k: &Safe32B) -> Res<Bytes> {
     match symm::encrypt(
         get_openssl_cipher(NIDAES)?,
         k.as_slice(),
-        Some(iv.as_slice()),
+        Some(nonce.as_slice()),
         m.as_slice(),
     ) {
         Ok(x) => {
@@ -469,11 +462,11 @@ pub fn stream_xor_aes256(m: Bytes, iv: &Safe16B, k: &Safe32B) -> Res<Bytes> {
 }
 
 // stream xor with Camellia-256-CTR
-pub fn stream_xor_camellia256(m: Bytes, iv: &Safe16B, k: &Safe32B) -> Res<Bytes> {
+pub fn stream_xor_camellia256(m: Bytes, nonce: &Safe16B, k: &Safe32B) -> Res<Bytes> {
     match symm::encrypt(
         get_openssl_cipher(NIDCAM)?,
         k.as_slice(),
-        Some(iv.as_slice()),
+        Some(nonce.as_slice()),
         m.as_slice(),
     ) {
         Ok(x) => {
@@ -491,14 +484,14 @@ pub fn stream_xor_camellia256(m: Bytes, iv: &Safe16B, k: &Safe32B) -> Res<Bytes>
 }
 
 // stream xor with Serpent-256-CTR
-pub fn stream_xor_serpent256(m: Bytes, iv: &Safe16B, k: &Safe32B) -> Res<Bytes> {
+pub fn stream_xor_serpent256(m: Bytes, nonce: &Safe16B, k: &Safe32B) -> Res<Bytes> {
     let cipher = get_botan_cipher("Serpent/CTR")?;
 
     if let Err(_) = cipher.set_key(k.as_slice()) {
         return Err("serpent-256 key construction error".to_string());
     }
 
-    match cipher.process(iv.as_slice(), m.as_slice()) {
+    match cipher.process(nonce.as_slice(), m.as_slice()) {
         Ok(x) => {
             if x.len() != m.len() {
                 return Err("serpent-256 xor error".to_string());
@@ -511,14 +504,14 @@ pub fn stream_xor_serpent256(m: Bytes, iv: &Safe16B, k: &Safe32B) -> Res<Bytes> 
 }
 
 // stream xor with Twofish-256-CTR
-pub fn stream_xor_twofish256(m: Bytes, iv: &Safe16B, k: &Safe32B) -> Res<Bytes> {
+pub fn stream_xor_twofish256(m: Bytes, nonce: &Safe16B, k: &Safe32B) -> Res<Bytes> {
     let cipher = get_botan_cipher("Twofish/CTR")?;
 
     if let Err(_) = cipher.set_key(k.as_slice()) {
         return Err("twofish-256 key construction error".to_string());
     }
 
-    match cipher.process(iv.as_slice(), m.as_slice()) {
+    match cipher.process(nonce.as_slice(), m.as_slice()) {
         Ok(x) => {
             if x.len() != m.len() {
                 return Err("twofish-256 xor error".to_string());
@@ -531,8 +524,8 @@ pub fn stream_xor_twofish256(m: Bytes, iv: &Safe16B, k: &Safe32B) -> Res<Bytes> 
 }
 
 // stream xor with XChaCha20
-pub fn stream_xor_xchacha20(m: Bytes, iv: &Safe24B, k: &Safe32B) -> Res<Bytes> {
-    let nonce = GenericArray::from_slice(iv.as_slice());
+pub fn stream_xor_xchacha20(m: Bytes, nonce: &Safe24B, k: &Safe32B) -> Res<Bytes> {
+    let nonce = GenericArray::from_slice(nonce.as_slice());
     let key = GenericArray::from_slice(k.as_slice());
     let mut cipher = XChaCha20::new(&key, &nonce);
     let mut xt = m.clone();
@@ -546,8 +539,8 @@ pub fn stream_xor_xchacha20(m: Bytes, iv: &Safe24B, k: &Safe32B) -> Res<Bytes> {
 }
 
 // stream xor with XSalsa20
-pub fn stream_xor_xsalsa20(m: Bytes, iv: &Safe24B, k: &Safe32B) -> Res<Bytes> {
-    let nonce = GenericArray::from_slice(iv.as_slice());
+pub fn stream_xor_xsalsa20(m: Bytes, nonce: &Safe24B, k: &Safe32B) -> Res<Bytes> {
+    let nonce = GenericArray::from_slice(nonce.as_slice());
     let key = GenericArray::from_slice(k.as_slice());
     let mut cipher = XSalsa20::new(&key, &nonce);
     let mut xt = m.clone();
@@ -609,9 +602,9 @@ mod unittests {
         let test_vectors = testutils::parse_test_vectors(json_str).unwrap();
 
         for v in test_vectors {
-            let iv = Safe16B::from_slice(v.iv.unwrap().as_slice()).unwrap();
+            let nonce = Safe16B::from_slice(v.iv.unwrap().as_slice()).unwrap();
             let key = Safe32B::from_slice(v.key.as_slice()).unwrap();
-            let pt = stream_xor_aes256(v.ct, &iv, &key).unwrap();
+            let pt = stream_xor_aes256(v.ct, &nonce, &key).unwrap();
             assert_eq!(v.pt, pt);
         }
     }
@@ -622,9 +615,9 @@ mod unittests {
         let test_vectors = testutils::parse_test_vectors(json_str).unwrap();
 
         for v in test_vectors {
-            let iv = Safe16B::from_slice(v.iv.unwrap().as_slice()).unwrap();
+            let nonce = Safe16B::from_slice(v.iv.unwrap().as_slice()).unwrap();
             let key = Safe32B::from_slice(v.key.as_slice()).unwrap();
-            let ct = stream_xor_aes256(v.pt, &iv, &key).unwrap();
+            let ct = stream_xor_aes256(v.pt, &nonce, &key).unwrap();
             assert_eq!(v.ct, ct);
         }
     }
@@ -671,9 +664,9 @@ mod unittests {
         let test_vectors = testutils::parse_test_vectors(json_str).unwrap();
 
         for v in test_vectors {
-            let iv = Safe16B::from_slice(v.iv.unwrap().as_slice()).unwrap();
+            let nonce = Safe16B::from_slice(v.iv.unwrap().as_slice()).unwrap();
             let key = Safe32B::from_slice(v.key.as_slice()).unwrap();
-            let pt = stream_xor_twofish256(v.ct, &iv, &key).unwrap();
+            let pt = stream_xor_twofish256(v.ct, &nonce, &key).unwrap();
             assert_eq!(v.pt, pt);
         }
     }
@@ -684,9 +677,9 @@ mod unittests {
         let test_vectors = testutils::parse_test_vectors(json_str).unwrap();
 
         for v in test_vectors {
-            let iv = Safe16B::from_slice(v.iv.unwrap().as_slice()).unwrap();
+            let nonce = Safe16B::from_slice(v.iv.unwrap().as_slice()).unwrap();
             let key = Safe32B::from_slice(v.key.as_slice()).unwrap();
-            let ct = stream_xor_twofish256(v.pt, &iv, &key).unwrap();
+            let ct = stream_xor_twofish256(v.pt, &nonce, &key).unwrap();
             assert_eq!(v.ct, ct);
         }
     }
@@ -697,9 +690,9 @@ mod unittests {
         let test_vectors = testutils::parse_test_vectors(json_str).unwrap();
 
         for v in test_vectors {
-            let iv = Safe24B::from_slice(v.iv.unwrap().as_slice()).unwrap();
+            let nonce = Safe24B::from_slice(v.iv.unwrap().as_slice()).unwrap();
             let key = Safe32B::from_slice(v.key.as_slice()).unwrap();
-            let pt = stream_xor_xchacha20(v.ct, &iv, &key).unwrap();
+            let pt = stream_xor_xchacha20(v.ct, &nonce, &key).unwrap();
             assert_eq!(v.pt, pt);
         }
     }
@@ -710,9 +703,9 @@ mod unittests {
         let test_vectors = testutils::parse_test_vectors(json_str).unwrap();
 
         for v in test_vectors {
-            let iv = Safe24B::from_slice(v.iv.unwrap().as_slice()).unwrap();
+            let nonce = Safe24B::from_slice(v.iv.unwrap().as_slice()).unwrap();
             let key = Safe32B::from_slice(v.key.as_slice()).unwrap();
-            let ct = stream_xor_xchacha20(v.pt, &iv, &key).unwrap();
+            let ct = stream_xor_xchacha20(v.pt, &nonce, &key).unwrap();
             assert_eq!(v.ct, ct);
         }
     }
@@ -723,9 +716,9 @@ mod unittests {
         let test_vectors = testutils::parse_test_vectors(json_str).unwrap();
 
         for v in test_vectors {
-            let iv = Safe24B::from_slice(v.iv.unwrap().as_slice()).unwrap();
+            let nonce = Safe24B::from_slice(v.iv.unwrap().as_slice()).unwrap();
             let key = Safe32B::from_slice(v.key.as_slice()).unwrap();
-            let pt = stream_xor_xsalsa20(v.ct, &iv, &key).unwrap();
+            let pt = stream_xor_xsalsa20(v.ct, &nonce, &key).unwrap();
             assert_eq!(v.pt, pt);
         }
     }
@@ -736,9 +729,9 @@ mod unittests {
         let test_vectors = testutils::parse_test_vectors(json_str).unwrap();
 
         for v in test_vectors {
-            let iv = Safe24B::from_slice(v.iv.unwrap().as_slice()).unwrap();
+            let nonce = Safe24B::from_slice(v.iv.unwrap().as_slice()).unwrap();
             let key = Safe32B::from_slice(v.key.as_slice()).unwrap();
-            let ct = stream_xor_xsalsa20(v.pt, &iv, &key).unwrap();
+            let ct = stream_xor_xsalsa20(v.pt, &nonce, &key).unwrap();
             assert_eq!(v.ct, ct);
         }
     }

@@ -86,6 +86,13 @@ macro_rules! define_safe_byte_array {
     };
 }
 
+// safe byte arrays of varying sizes
+define_safe_byte_array!(Safe16B, 16);
+define_safe_byte_array!(Safe24B, 24);
+define_safe_byte_array!(Safe32B, 32);
+define_safe_byte_array!(Safe48B, 48);
+define_safe_byte_array!(Safe64B, 64);
+
 // a safe byte vector that wipes itself on deletion
 #[derive(Clone, Debug, PartialEq, Zeroize)]
 #[zeroize(drop)]
