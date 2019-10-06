@@ -427,6 +427,12 @@ where
     Ok(buf)
 }
 
+pub fn hmac_blake2b(buf: &[u8], k: &ByteArr<U48>) -> ByteArr<U64> {
+    let mut hmac = Hmac::<blake2::Blake2b>::new_varkey(k.as_slice()).unwrap();
+    hmac.input(buf);
+    ByteArr::from_generic_array(hmac.result().code())
+}
+
 pub fn hmac_keccak(buf: &[u8], k: &ByteArr<U48>) -> ByteArr<U64> {
     let mut hmac = Hmac::<sha3::Keccak512>::new_varkey(k.as_slice()).unwrap();
     hmac.input(buf);

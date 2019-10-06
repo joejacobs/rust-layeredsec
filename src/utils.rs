@@ -157,7 +157,7 @@ impl ByteVec {
 }
 
 #[cfg(test)]
-pub(crate) mod testutils {
+pub mod testutils {
     use super::{ByteVec, Res};
 
     use serde_json;

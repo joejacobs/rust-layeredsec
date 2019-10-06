@@ -11,7 +11,7 @@ define_2_layer_encryption_module!(
     &[0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb],
     XChaCha20,
     Serpent256Ctr,
-    hmac_sha3,
+    hmac_blake2b,
     hmac_sha2
 );
 
@@ -30,7 +30,7 @@ define_3_layer_encryption_module!(
     XChaCha20,
     Camellia256Ctr,
     Serpent256Ctr,
-    hmac_sha2,
+    hmac_blake2b,
     hmac_keccak
 );
 
