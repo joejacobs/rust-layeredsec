@@ -11,8 +11,10 @@ keywords = ["crypto"]
 categories = ["cryptography"]
 
 [dependencies]
+aes = "~0.3"
 botan = "~0.6"
 chacha20 = { version = "~0.2", features = ["xchacha20", "zeroize"] }
+ctr = "~0.3"
 hmac = "~0.7"
 openssl = { version = "~0.10", features = ["vendored"] }
 rand = "~0.7"

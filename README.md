@@ -30,17 +30,17 @@ layeredsec has the following stream ciphers and HMACs:
 
 Stream Ciphers
 
-* AES-256-CTR (uses [rust-openssl][3]/[OpenSSL][4])
-* Camellia-256-CTR (uses [rust-openssl][3]/[OpenSSL][4])
-* Serpent-256-CTR (uses [botan-rs][5]/[botan][6])
-* Twofish-256-CTR (uses [botan-rs][5]/[botan][6])
-* XChaCha20 (uses [RustCrypto][7])
-* XSalsa20 (uses [RustCrypto][7])
+* AES-256-CTR (uses [RustCrypto][3])
+* Camellia-256-CTR (uses [rust-openssl][4]/[OpenSSL][5])
+* Serpent-256-CTR (uses [botan-rs][6]/[botan][7])
+* Twofish-256-CTR (uses [botan-rs][6]/[botan][7])
+* XChaCha20 (uses [RustCrypto][3])
+* XSalsa20 (uses [RustCrypto][3])
 
-HMAC (uses [RustCrypto][7])
+HMAC (uses [RustCrypto][3])
 
-* SHA-512
 * Keccak-512
+* SHA-512
 * SHA3-512
 
 For instance, the following defines the "Python version" of TripleSec v3:
@@ -48,9 +48,9 @@ For instance, the following defines the "Python version" of TripleSec v3:
     define_3_layer_encryption_module!(
         triplesec_v3_python,                            // module name
         &[0x1c, 0x94, 0xd7, 0xde, 0x0, 0x0, 0x0, 0x3],  // header
-        stream_xor_xsalsa20,                            // inner-most cipher
-        stream_xor_twofish256,                          // middle cipher
-        stream_xor_aes256,                              // outer-most cipher
+        XSalsa20,                                       // inner-most cipher
+        Twofish256Ctr,                                  // middle cipher
+        Aes256Ctr,                                      // outer-most cipher
         hmac_sha2,                                      // HMAC 1
         hmac_sha3                                       // HMAC 2
     );
@@ -65,8 +65,8 @@ one at https://mozilla.org/MPL/2.0/.
 
 [1]: https://keybase.io/triplesec/
 [2]: http://keybase5wmilwokqirssclfnsqrjdsi7jdir5wy7y7iu3tanwmtp6oid.onion/triplesec/
-[3]: https://github.com/sfackler/rust-openssl/
-[4]: https://www.openssl.org/
-[5]: https://github.com/randombit/botan-rs/
-[6]: https://botan.randombit.net/
-[7]: https://github.com/RustCrypto/
+[3]: https://github.com/RustCrypto/
+[4]: https://github.com/sfackler/rust-openssl/
+[5]: https://www.openssl.org/
+[6]: https://github.com/randombit/botan-rs/
+[7]: https://botan.randombit.net/
