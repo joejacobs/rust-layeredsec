@@ -147,6 +147,12 @@ impl Bytes {
         }
     }
 
+    pub fn from_slice(b: &[u8]) -> Res<Self> {
+        let mut v = Self::blank(b.len());
+        v.copy_from_slice(0, b.len(), b)?;
+        Ok(v)
+    }
+
     pub fn from_str(s: &str) -> Res<Self> {
         if s.find("0x") == Some(0) {
             return Bytes::from_hex(&s[2..]);

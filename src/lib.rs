@@ -165,10 +165,8 @@ fn cipher_decrypt<T>(dec_fn: DecFn<T>, buf: Bytes, k: &Safe32B) -> Res<Bytes>
 where
     T: FromSlice + Size,
 {
-    let ct_sz = buf.len() - T::size();
     let iv = T::from_slice(buf.get_slice(0, T::size())?)?;
-    let mut ct = Bytes::blank(ct_sz);
-    ct.copy_from_slice(0, ct_sz, buf.get_slice(T::size(), buf.len())?)?;
+    let ct = Bytes::from_slice(buf.get_slice(T::size(), buf.len())?)?;
     dec_fn(ct, &iv, k)
 }
 
