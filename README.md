@@ -39,7 +39,7 @@ Stream Ciphers
 
 HMAC (uses [RustCrypto][3])
 
-* Blake2b
+* BLAKE2b
 * Keccak-512
 * SHA-512
 * SHA3-512
